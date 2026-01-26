@@ -27,7 +27,7 @@ nvcc_flags = []
 
 if IS_WINDOWS:
     # Required for MSVC + nvcc + torch headers
-    cxx_flags += [""
+    cxx_flags += [
         "/O2",
         "/std:c++17",
         "/EHsc", 
