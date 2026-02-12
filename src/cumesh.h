@@ -455,6 +455,31 @@ public:
     std::tuple<int, int> simplify_step(float lambda_edge_length, float lambda_skinny, float threshold, bool timing=false);
 
 
+    /**
+     * Sort edges by their collapse cost for deterministic simplification.
+     * 
+     * This function sorts edges by cost (ascending) using thrust::sort_by_key on GPU.
+     * Edges with equal costs maintain their original relative order (stable sort).
+     * 
+     * 
+     * This function requires:
+     * - edges: Buffer of edge pairs (uint64_t, packed as e0<<32|e1)
+     * - edge_collapse_costs: Buffer of collapse costs per edge (float)
+     * 
+     * This function modifies in-place:
+     * - edges: Reordered by ascending cost
+     * - edge_collapse_costs: Sorted in ascending order
+     * 
+     * This function should be called:
+     * - After get_edge_collapse_cost()
+     * - Before propagate_cost()
+     * 
+     * Thread-safe: Yes (operates on GPU buffers)
+     * Side effects: None (only reorders existing data)
+     */
+
+    void sort_edges_by_cost();
+
     // Atlasing functions
 
    /**

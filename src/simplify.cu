@@ -1,7 +1,8 @@
 #include "cumesh.h"
 #include "dtypes.cuh"
 #include <cub/cub.cuh>
-
+#include <thrust/sort.h>
+#include <thrust/device_ptr.h>  
 
 namespace cumesh {
 
@@ -519,6 +520,30 @@ void collapse_edges(
     swap_buffers(ctx.temp_storage, ctx.faces);
 }
 
+void CuMesh::sort_edges_by_cost() {
+    size_t E = this->edges.size;
+    
+    if (E == 0 || this->edge_collapse_costs.size == 0) {
+        return;
+    }
+    
+    if (E != this->edge_collapse_costs.size) {
+        throw std::runtime_error(
+            "Mismatch between edges size (" + std::to_string(E) + 
+            ") and edge_collapse_costs size (" + std::to_string(this->edge_collapse_costs.size) + ")"
+        );
+    }
+    
+    thrust::device_ptr<float> costs_ptr(this->edge_collapse_costs.ptr);
+    thrust::device_ptr<uint64_t> edges_ptr(this->edges.ptr);
+    
+    thrust::stable_sort_by_key(
+        costs_ptr,
+        costs_ptr + E,
+        edges_ptr
+    );
+}
+
 
 std::tuple<int, int> CuMesh::simplify_step(float lambda_edge_length, float lambda_skinny, float threshold, bool timing) {
     std::chrono::high_resolution_clock::time_point start, end;
@@ -554,6 +579,14 @@ std::tuple<int, int> CuMesh::simplify_step(float lambda_edge_length, float lambd
         CUDA_CHECK(cudaDeviceSynchronize());
         end = std::chrono::high_resolution_clock::now();
         std::cout << "get_edge_collapse_cost: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " us" << std::endl;
+    }
+
+    if (timing) start = std::chrono::high_resolution_clock::now();
+    this->sort_edges_by_cost();
+    if (timing) {
+        CUDA_CHECK(cudaDeviceSynchronize());
+        end = std::chrono::high_resolution_clock::now();
+        std::cout << "sort_edges_by_cost: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " us" << std::endl;
     }
 
     if (timing) start = std::chrono::high_resolution_clock::now();
